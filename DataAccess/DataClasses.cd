@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1" MembersFormat="FullSignature">
+  <Class Name="DataAccess.Controllers.NoteController" Collapsed="true">
+    <Position X="1.5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAABAAAAAAAAAAAAEAAAAAEAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Controllers\NoteController.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="DataAccess.DatabaseContext.DbContextService" Collapsed="true">
+    <Position X="1.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAgAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAA=</HashCode>
+      <FileName>DatabaseContext\DbContextService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="DataAccess.Services.NoteRepositoryService" Collapsed="true">
+    <Position X="1.5" Y="3.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAABAAAAAAAAAAAAAAEAAAAAEAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Services\NoteRepositoryService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="DataAccess.Constants">
+    <Position X="1.5" Y="4" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACCAAAAAA=</HashCode>
+      <FileName>Constants.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Font Name="Segou UI" Size="9" />
+</ClassDiagram>
