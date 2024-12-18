@@ -1,8 +1,4 @@
-﻿
-
-using DataAccess.Models;
-
-namespace DataAccess.Services;
+﻿namespace DataAccess.Services;
 
 public class NoteRepositoryService
 {
@@ -20,7 +16,11 @@ public class NoteRepositoryService
         }
         try
         {
-            await _dbContext.AddAsync(new NoteModel(request.Title!, request.Description!), token);
+            await _dbContext.AddAsync(new NoteModel()
+            {
+               Title = request.Title,
+               Description = request.Description
+            }, token);
             await _dbContext.SaveChangesAsync(token);
 
         }
@@ -36,18 +36,18 @@ public class NoteRepositoryService
         var notesDtos = new List<NoteDto>();
 
         if (getNotesRequest is null)
-            return null;
+            return new List<NoteDto>();
 
         try
         {
             var notesQuery = _dbContext.Notes
             .Where(x => string.IsNullOrWhiteSpace(getNotesRequest.Search)
-                || x.Title.ToLower().Contains(getNotesRequest.Search.ToLower()));
+                || x.Title!.ToLower().Contains(getNotesRequest.Search.ToLower()));
 
             Expression<Func<NoteModel, object>> selectorKey = getNotesRequest.SortItem?.ToLower() switch
             {
                 "date" => note => note.CreatedAt,
-                "title" => note => note.Title,
+                "title" => note => note.Title!,
                 _ => note => note.Id,
             };
 
@@ -55,7 +55,7 @@ public class NoteRepositoryService
                 notesQuery.OrderByDescending(selectorKey) :
                 notesQuery.OrderBy(selectorKey);
 
-            notesDtos = await notesQuery.Select(n => new NoteDto(n.Id, n.Title, n.Description, n.CreatedAt)).ToListAsync(cancellationToken: token);
+            notesDtos = await notesQuery.Select(n => new NoteDto(n.Id, n.Title!, n.Description!, n.CreatedAt)).ToListAsync(cancellationToken: token);
         }
         catch (Exception ex)
         {
