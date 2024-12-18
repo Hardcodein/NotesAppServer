@@ -2,11 +2,9 @@
 
 public class SessionUserModel
 {
-    public Guid? UserId { get; set; }
-    public DateTime BeginSessionDate { get; set; }
-    public SessionUserModel(UserModel user)
-    {
-        UserId = user.Id;
-        BeginSessionDate = DateTime.UtcNow;
-    }
+    public Guid Id { get; set; }
+    public Guid User_Id { get; set; }
+    public Guid Token_Id { get; set; }
+    public virtual UserModel? User { get; set; }
+    public virtual JwtTokenModel? JwtToken { get; set; }
 }
