@@ -25,7 +25,7 @@ services:
     depends_on:
       - postgres
     ports:
-      - 8080:8080
+      - 9999:8080
     networks:
       - webnet
     environment:
@@ -39,5 +39,6 @@ networks:
 volumes: 
   postgres-data:
   dataAccessvolume:
+  notesclient:
 
 
