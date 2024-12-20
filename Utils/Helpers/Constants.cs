@@ -1,4 +1,4 @@
-﻿namespace Utils;
+﻿namespace Utils.Helpers;
 
 public static class Constants
 {

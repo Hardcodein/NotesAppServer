@@ -3,11 +3,12 @@
 public class DbContextService : DbContext
 {
     private readonly IConfiguration _configuration;
+
     public DbSet<NoteModel> Notes => Set<NoteModel>();
     public DbSet<UserModel> Users => Set<UserModel>();
     public DbSet<SessionUserModel> SessionUsers => Set<SessionUserModel>();
-
     public DbSet<JwtTokenModel> JwtTokenModels => Set<JwtTokenModel>();
+
     public DbContextService(IConfiguration configuration)
     {
         _configuration = configuration;
@@ -15,14 +16,14 @@ public class DbContextService : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseNpgsql(_configuration.GetConnectionString("Database"));
+        optionsBuilder.UseNpgsql(_configuration.GetConnectionString("DockerPostgresConnectionString"));
     }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<NoteModel>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("note_model_pkey");
-            entity.ToTable("notes");
+            entity.ToTable("Notes");
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.User_Id).HasColumnName("user_id");
@@ -36,7 +37,7 @@ public class DbContextService : DbContext
         {
 
             entity.HasKey(e => e.Id).HasName("session_model_pkey");
-            entity.ToTable("sessions");
+            entity.ToTable("SessionUsers");
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e=>e.Token_Id).HasColumnName("token_id");
@@ -50,7 +51,7 @@ public class DbContextService : DbContext
         modelBuilder.Entity<JwtTokenModel>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("jwt_token_pkey");
-            entity.ToTable("jwt_tokens");
+            entity.ToTable("JwtTokenModels");
 
             entity.Property(e=> e.Id).HasColumnName("id");
             entity.Property(e => e.Session_Id).HasColumnName("session_id");
@@ -62,7 +63,7 @@ public class DbContextService : DbContext
         modelBuilder.Entity<UserModel>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("user_model_pkey");
-            entity.ToTable("users");
+            entity.ToTable("Users");
 
             entity.Property(e=>e.Id).HasColumnName("id");
             entity.Property(e=>e.UserName).HasColumnName("user_name");

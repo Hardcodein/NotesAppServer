@@ -23,12 +23,15 @@ namespace AuthenticationService.Controllers
         public async Task<IActionResult> Logout()
         {
             string? refreshToken = HttpContext.Request.Cookies["refreshToken"];
+
             if (string.IsNullOrEmpty(refreshToken))
             {
                 return BadRequest("Refresh token not found.");
             }
+
             // Извлекаем информацию о пользователе из токена
             UserModel? userModel = _authService.ExtractClaimsFromRefreshToken(refreshToken);
+
             if (userModel != null)
             {
                 // Удаляем сессию пользователя
