@@ -1,0 +1,10 @@
+﻿global using Microsoft.Extensions.Options;
+global using Microsoft.IdentityModel.Tokens;
+global using System.IdentityModel.Tokens.Jwt;
+global using System.Security.Claims;
+global using AuthenticationService.Models;
+global using System.Text;
+global using Newtonsoft.Json;
+global using Newtonsoft.Json.Linq;
+global using Utils;
+global using AuthenticationService.Helpers;

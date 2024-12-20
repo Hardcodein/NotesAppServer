@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - 5433:5434
+      - 54320:5432
     networks:
       - webnet
     volumes:

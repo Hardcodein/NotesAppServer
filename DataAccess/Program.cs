@@ -9,6 +9,7 @@ builder.Services.AddControllers().AddNewtonsoftJson(options =>
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<DbContextService>();
 builder.Services.AddTransient<NoteRepositoryService>();
+builder.Services.AddTransient<UserRepositoryService>();
 
 builder.Services.AddCors(options =>
 {
