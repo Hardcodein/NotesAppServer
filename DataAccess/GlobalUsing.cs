@@ -9,3 +9,4 @@ global using DataAccess.Models;
 global using DataAccess.DatabaseContext;
 global using System.Linq.Expressions;
 global using Newtonsoft.Json;
+global using DataAccess.Contracts.UserControllerContracts.Responses;
