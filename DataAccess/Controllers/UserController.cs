@@ -1,4 +1,4 @@
-﻿using DataAccess.Contracts.UserControllerContracts.Responses;
+﻿
 
 namespace DataAccess.Controllers;
 
@@ -19,7 +19,9 @@ public class UserController : ControllerBase
         {
             return BadRequest("Login is required.");
         }
+
         UserModel? user = _userRepositoryService.GetUser(login);
+
         if (user == null)
         {
             return NotFound("User not found.");
@@ -57,23 +59,16 @@ public class UserController : ControllerBase
     }
 
     [HttpPut("UpdateSessionUser")]
-    public ActionResult UpdateSessionUser([FromBody] Dictionary<string, object>? data, CancellationToken token)
+    public ActionResult UpdateSessionUser([FromBody] UpdateSessionRequest updateSessionRequest, CancellationToken token)
     {
-        if (data == null
-            || !data.ContainsKey("RefreshTokenExpiration")
-            || !data.ContainsKey("OldRefreshTokenJti")
-            || !data.ContainsKey("OldRefreshTokenJti"))
+        if (updateSessionRequest == null)
         {
             return BadRequest("No valid data.");
         }
 
-        var refreshTokenExpiration = DateTime.Parse(data["RefreshTokenExpiration"].ToString()!);
-        var refreshTokenJti = Guid.Parse(data["RefreshTokenJti"].ToString()!);
-        var oldRefreshTokenJti = Guid.Parse(data["OldRefreshTokenJti"].ToString()!);
-
 
         // Передача параметров в сервис
-        return _userRepositoryService.UpdateSessionUser(new UpdateSessionRequest(refreshTokenExpiration, refreshTokenJti, oldRefreshTokenJti), token)
+        return _userRepositoryService.UpdateSessionUser(updateSessionRequest, token)
             ? Ok()
             : BadRequest("Invalid data or failed to update session.");
     }

@@ -18,6 +18,7 @@ public class DbContextService : DbContext
     {
         optionsBuilder.UseNpgsql(_configuration.GetConnectionString("DockerPostgresConnectionString"));
     }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<NoteModel>(entity =>
@@ -48,6 +49,7 @@ public class DbContextService : DbContext
             .HasForeignKey<SessionUserModel>(e => e.Token_Id);
 
         });
+
         modelBuilder.Entity<JwtTokenModel>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("jwt_token_pkey");
@@ -81,6 +83,7 @@ public class DbContextService : DbContext
             HasMany(t => t.Sessions).
             WithOne(u => u.User).
             HasForeignKey(i => i.User_Id);
+
         });
 
     }

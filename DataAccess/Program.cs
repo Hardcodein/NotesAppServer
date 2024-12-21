@@ -19,6 +19,12 @@ builder.Services.AddCors(options =>
         policy.AllowAnyHeader();
         policy.AllowAnyMethod();
     });
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:8099");
+        policy.AllowAnyHeader();
+        policy.AllowAnyMethod();
+    });
 });
 
 var app = builder.Build();

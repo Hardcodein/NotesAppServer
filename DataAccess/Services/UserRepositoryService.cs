@@ -1,6 +1,4 @@
-﻿using DataAccess.Contracts.UserControllerContracts.Responses;
-
-namespace DataAccess.Services;
+﻿namespace DataAccess.Services;
 
 public class UserRepositoryService
 {
@@ -39,16 +37,14 @@ public class UserRepositoryService
     {
         try
         {
-
-            var existsUser = _dbContext.Users.FirstOrDefault(x => x.Id == addSessionRequest!.User_Id);
+            var existsUser = _dbContext.Users.FirstOrDefault(x => x.Id == addSessionRequest.User_Id);
 
 
             var newSession = new SessionUserModel()
             {
-
-                Id = new Guid(),
+                Id = Guid.NewGuid(),
                 User_Id = existsUser!.Id,
-                Token_Id = new Guid(),
+                Token_Id = Guid.NewGuid(),
             };
 
             _dbContext.SessionUsers.Add(newSession);
