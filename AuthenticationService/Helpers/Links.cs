@@ -2,5 +2,5 @@
 
 public static class Links
 {
-    public const string DbProvider = "https://localhost:9999";
+    public const string DbProvider = "http://dataaccess:8080";
 }

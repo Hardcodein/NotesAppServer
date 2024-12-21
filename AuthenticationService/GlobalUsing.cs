@@ -8,3 +8,7 @@ global using Newtonsoft.Json;
 global using Newtonsoft.Json.Linq;
 global using Utils;
 global using AuthenticationService.Helpers;
+global using AuthenticationService.Contracts;
+global using AuthenticationService.Services;
+global using Microsoft.AspNetCore.Mvc;
+global using Swashbuckle.AspNetCore.Annotations;

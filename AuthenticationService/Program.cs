@@ -88,7 +88,6 @@ app.UseSwagger();
 app.UseSwaggerUI();
 // ¬ключить CORS
 app.UseCors("AllowSpecificOrigins");
-app.UseHttpsRedirection();
 
 // ¬ключаем аутентификацию и авторизацию
 app.UseAuthentication(); // ¬ажно: добавьте эту строку перед UseAuthorization
