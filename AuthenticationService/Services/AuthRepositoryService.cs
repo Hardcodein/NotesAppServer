@@ -13,49 +13,106 @@ public class AuthRepositoryService
     }
 
 
-    public async Task<UserModel?> AuthenticationUserAsync(string? userLogin, string? userPassword)
+    public async Task<JwtTokenModel?> AuthenticationUserAsync(string? userLogin, string? userPassword)
     {
-        if (string.IsNullOrWhiteSpace(userLogin) || string.IsNullOrWhiteSpace(userPassword))
+        try
         {
-            return null;
-        }
 
-        var GetUserResponse = await _httpClient.GetAsync($"{Links.DbProvider}/api/User/GetUser?login={userLogin}");
-
-        if (GetUserResponse.IsSuccessStatusCode)
-        {
-            var user = await GetUserResponse.Content.ReadFromJsonAsync<UserModel>();
-
-            if (user != null)
+            if (string.IsNullOrWhiteSpace(userLogin)
+                || string.IsNullOrWhiteSpace(userPassword))
             {
-                // Хэширование пароля
-                string? hashedPassword = Cryptography.HashPassword(userPassword);
-                string? hashedPasswordSalt = Cryptography.ApplySalt(hashedPassword, user.SaltPassword);
+                return null;
+            }
 
-                if (user.Password == hashedPasswordSalt)
+            var getUserResponse = await _httpClient.GetAsync($"{Links.DbProvider}/api/User/GetUser?login={userLogin}");
+
+            if (!getUserResponse.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var user = await getUserResponse.Content.ReadFromJsonAsync<UserModel>();
+
+            if (user == null)
+            {
+                return null;
+            }
+
+            string? hashedPassword = Cryptography.HashPassword(userPassword);
+            string? hashedPasswordSalt = Cryptography.ApplySalt(hashedPassword, user.SaltPassword);
+
+            if (user.Password == hashedPasswordSalt)
+            {
+                var token = new JwtTokenModel
                 {
-                    // Генерация JWT токенов
-                    JwtTokenModel tokens = user.JwtTokens;
+                    AccessToken = GenerateAccessToken(user.Id.ToString())
+                };
 
-                    tokens.AccessToken = GenerateAccessToken(user.Uid.ToString());
+                (token.RefreshToken, token.RefreshTokenExpiration) = GenerateRefreshToken(user.Id.ToString());
 
-                    (tokens.RefreshToken, tokens.RefreshTokenExpiration) =
-                        GenerateRefreshToken(user.Uid.ToString());
+                token.RefreshTokenJti = GetJtiFromToken(token.RefreshToken);
 
-                    tokens.RefreshTokenJti = GetJtiFromToken(tokens.RefreshToken);
+                var AccessToken = GenerateAccessToken(user.Id.ToString());
 
-                    if (!await AddSessionUser(user))
-                    {
-                        return null;
-                    }
-                    return user;
+                if (!await AddSessionUser(new AddSessionRequest(user.Id, token.RefreshTokenExpiration, token.RefreshTokenJti)))
+                {
+                    return null;
                 }
+                return token;
+
             }
         }
-
+        catch (Exception ex)
+        {
+            throw new Exception(ex.Message);
+        }
         return null;
     }
 
+    public async Task<bool> AddSessionUser(AddSessionRequest addSessionRequest)
+    {
+        if (addSessionRequest is null)
+            throw new ArgumentNullException(nameof(addSessionRequest));
+
+        var jsonSettings = new JsonSerializerSettings
+        {
+            NullValueHandling = NullValueHandling.Ignore
+        };
+
+        var jsonContent = new StringContent(JsonConvert.SerializeObject(addSessionRequest, jsonSettings), Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.PostAsync($"{Links.DbProvider}/api/User/AddSessionUser", jsonContent);
+
+        return response.IsSuccessStatusCode;
+    } 
+
+    public async Task<bool> UpdateSessionUser(UpdateSessionRequest updateSessionRequest)
+    {
+        if (updateSessionRequest is null)
+            throw new ArgumentNullException(nameof(updateSessionRequest));
+
+        var jsonSettings = new JsonSerializerSettings
+        {
+            NullValueHandling = NullValueHandling.Ignore
+        };
+
+        var jsonContent = new StringContent(JsonConvert.SerializeObject(updateSessionRequest, jsonSettings), Encoding.UTF8, "application/json");
+        var response = await _httpClient.PutAsync($"{Links.DbProvider}/api/User/UpdateSessionUser", jsonContent);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> DeleteSessionUser(DeleteSessionRequest deleteSessionRequest)
+    {
+        if (deleteSessionRequest is null)
+            throw new ArgumentNullException(nameof(deleteSessionRequest));
+
+        var query = $"?RefreshTokenJti={deleteSessionRequest.RefreshTokenJti}";
+
+        var response = await _httpClient.DeleteAsync($"{Links.DbProvider}/api/User/DeleteSessionUser{query}");
+        return response.IsSuccessStatusCode;
+    }
+
+    #region Работа с токенами
     public Guid? GetJtiFromToken(string? token)
     {
         if (string.IsNullOrWhiteSpace(token))
@@ -75,6 +132,39 @@ public class AuthRepositoryService
         }
 
         return null;
+    }
+
+    public async Task<bool> ValidateRefreshToken( Guid? refreshTokenJti)
+    {
+        if (Guid.Empty.Equals(refreshTokenJti))
+        {
+            return false;
+        }
+        var GetSessionuri = $"{Links.DbProvider}/api/User/GetSessionUser?refreshTokenJti={refreshTokenJti}";
+
+        var GetSessionResponse = await _httpClient.GetAsync(GetSessionuri);
+
+        if (GetSessionResponse.IsSuccessStatusCode)
+        {
+            var jsonGetSessionResponse = await GetSessionResponse.Content.ReadAsStringAsync();
+
+            var tokenInformation = JsonConvert.DeserializeObject(jsonGetSessionResponse);
+
+            if (tokenInformation != null)
+            {
+                JwtTokenModel? jwtTokenModel = JsonConvert.DeserializeObject<JwtTokenModel>(
+                    JObject.Parse(jsonGetSessionResponse)["session"]?.ToString() ?? string.Empty
+                );
+
+                if (jwtTokenModel != null && jwtTokenModel.RefreshTokenExpiration <= DateTime.UtcNow)
+                {
+                    await DeleteSessionUser(new DeleteSessionRequest(jwtTokenModel.RefreshTokenJti));
+                    return false;
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     public string? GenerateAccessToken(string? userUid)
@@ -107,6 +197,43 @@ public class AuthRepositoryService
         throw new InvalidOperationException("JWT secret is not configured.");
     }
 
+    public JwtTokenModel? ExtractClaimsFromRefreshToken(string? refreshToken)
+    {
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+
+            if (handler.CanReadToken(refreshToken))
+            {
+                JwtSecurityToken? jwtToken = handler.ReadJwtToken(refreshToken);
+
+                string? userUid = jwtToken.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
+
+                string? jti = jwtToken.Claims.FirstOrDefault(c => c.Type == "jti")?.Value;
+
+                DateTime expiration = jwtToken.ValidTo;
+
+                if (userUid != null && jti != null)
+                {
+                    JwtTokenModel token = new JwtTokenModel()
+                    {
+
+                        RefreshTokenJti = Guid.Parse(jti),
+                        RefreshTokenExpiration = expiration
+
+                    };
+                    return token;
+                }
+            }
+            return null;
+        }
+        catch
+        {
+            Console.WriteLine("No valid token");
+            return null;
+        }
+    }
+
     public (string? Token, DateTime Expiration) GenerateRefreshToken(string? userUid)
     {
         if (string.IsNullOrWhiteSpace(userUid))
@@ -120,120 +247,23 @@ public class AuthRepositoryService
 
         if (_jwtSettingsModel.Secret != null)
         {
-            SymmetricSecurityKey key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettingsModel.Secret));
-            SigningCredentials creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            DateTime expiration = DateTime.Now.AddDays(_jwtSettingsModel.RefreshTokenExpirationDays);
-            JwtSecurityToken token = new JwtSecurityToken(
+            SymmetricSecurityKey key = new(Encoding.UTF8.GetBytes(_jwtSettingsModel.Secret));
+
+            SigningCredentials creds = new(key, SecurityAlgorithms.HmacSha256);
+
+            DateTime expiration = DateTime.Now.AddDays(_jwtSettingsModel.RefreshTokenExpirationDays).ToUniversalTime();
+
+            JwtSecurityToken token = new(
                 issuer: _jwtSettingsModel.Issuer,
                 audience: _jwtSettingsModel.Audience,
                 claims: claims,
                 expires: expiration,
                 signingCredentials: creds);
+
             return (new JwtSecurityTokenHandler().WriteToken(token), expiration);
         }
 
         return (null, DateTime.MinValue);
     }
-
-    public async Task<bool> ValidateRefreshToken(Guid userUid, Guid? refreshTokenJti)
-    {
-        if (Guid.Empty.Equals(userUid) || Guid.Empty.Equals(refreshTokenJti))
-        {
-            return false;
-        }
-        var GetSessionuri = $"{Links.DbProvider}/api/User/GetSessionUser?refreshTokenJti={refreshTokenJti}";
-
-        var GetSessionResponse = await _httpClient.GetAsync(GetSessionuri);
-
-        if (GetSessionResponse.IsSuccessStatusCode)
-        {
-            var jsonGetSessionResponse = await GetSessionResponse.Content.ReadAsStringAsync();
-
-            var tokenInformation = JsonConvert.DeserializeObject(jsonGetSessionResponse);
-
-            if (tokenInformation != null)
-            {
-                JwtTokenModel? jwtTokenModel = JsonConvert.DeserializeObject<JwtTokenModel>(
-                    JObject.Parse(jsonGetSessionResponse)["session"]?.ToString() ?? string.Empty
-                );
-                if (jwtTokenModel != null && jwtTokenModel.RefreshTokenExpiration <= DateTime.UtcNow)
-                {
-                    await DeleteSessionUser(userUid,jwtTokenModel.RefreshTokenJti);
-                    return false;
-                }
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public async Task<bool> AddSessionUser(UserModel userModel)
-    {
-        var jsonSettings = new JsonSerializerSettings
-        {
-            NullValueHandling = NullValueHandling.Ignore
-        };
-        var jsonContent = new StringContent(JsonConvert.SerializeObject(userModel, jsonSettings), Encoding.UTF8, "application/json");
-        var response = await _httpClient.PostAsync($"{Links.DbProvider}/api/User/AddSessionUser", jsonContent);
-        return response.IsSuccessStatusCode;
-    }
-
-    public async Task<bool> UpdateSessionUser(UserModel? userModel, Guid? oldRefreshTokenJti)
-    {
-        if (userModel == null)
-            throw new ArgumentNullException(nameof(userModel));
-
-        var jsonSettings = new JsonSerializerSettings
-        {
-            NullValueHandling = NullValueHandling.Ignore
-        };
-        var payload = new
-        {
-            User = userModel,
-            OldRefreshTokenJti = oldRefreshTokenJti
-        };
-        var jsonContent = new StringContent(JsonConvert.SerializeObject(payload, jsonSettings), Encoding.UTF8, "application/json");
-        var response = await _httpClient.PutAsync($"{Links.DbProvider}/api/User/UpdateSessionUser", jsonContent);
-        return response.IsSuccessStatusCode;
-    }
-    public async Task<bool> DeleteSessionUser(Guid uidUser,Guid? refreshTokenJti)
-    {
-        var query = $"?userId={uidUser}&sessionId={refreshTokenJti}";
-        var response = await _httpClient.DeleteAsync($"{Links.DbProvider}/api/User/DeleteSessionUser{query}");
-        return response.IsSuccessStatusCode;
-    }
-
-    public UserModel? ExtractClaimsFromRefreshToken(string? refreshToken)
-    {
-        try
-        {
-            var handler = new JwtSecurityTokenHandler();
-            if (handler.CanReadToken(refreshToken))
-            {
-                JwtSecurityToken? jwtToken = handler.ReadJwtToken(refreshToken);
-                string? userUid = jwtToken.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
-                string? jti = jwtToken.Claims.FirstOrDefault(c => c.Type == "jti")?.Value;
-                DateTime expiration = jwtToken.ValidTo;
-                if (userUid != null && jti != null)
-                {
-                    UserModel userModel = new UserModel()
-                    {
-                        Uid = Guid.Parse(userUid),
-                        JwtTokens =
-                        {
-                            RefreshTokenJti = Guid.Parse(jti),
-                            RefreshTokenExpiration = expiration
-                        }
-                    };
-                    return userModel;
-                }
-            }
-            return null;
-        }
-        catch
-        {
-            Console.WriteLine("No valid token");
-            return null;
-        }
-    }
+    #endregion
 }

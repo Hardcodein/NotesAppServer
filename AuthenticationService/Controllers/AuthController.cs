@@ -1,149 +1,164 @@
-﻿using AuthenticationService.Services;
-using Microsoft.AspNetCore.Mvc;
-using Swashbuckle.AspNetCore.Annotations;
-using AuthenticationService.Models;
+﻿using Microsoft.IdentityModel.JsonWebTokens;
 
-namespace AuthenticationService.Controllers
+namespace AuthenticationService.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class AuthController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class AuthController : ControllerBase
+    private readonly AuthRepositoryService _authService;
+
+    public AuthController(AuthRepositoryService authService)
     {
-        private readonly AuthRepositoryService _authService;
+        _authService = authService;
+    }
 
-        public AuthController(AuthRepositoryService authService)
+
+    [HttpDelete("logout")]
+    [SwaggerOperation(
+        Summary = "Выход",
+        Description = "Этот метод деактивирует сеесию пользователя.")]
+    public async Task<IActionResult> Logout()
+    {
+        string? refreshToken = HttpContext.Request.Cookies["refreshToken"];
+
+        if (string.IsNullOrEmpty(refreshToken))
         {
-            _authService = authService;
+            return BadRequest("Refresh token not found.");
         }
 
-        [HttpDelete("logout")]
-        [SwaggerOperation(
-            Summary = "Выход",
-            Description = "Этот метод деактивирует сеесию пользователя.")]
-        public async Task<IActionResult> Logout()
+        var jwtToken = _authService.ExtractClaimsFromRefreshToken(refreshToken);
+
+        if (jwtToken is null)
         {
-            string? refreshToken = HttpContext.Request.Cookies["refreshToken"];
-
-            if (string.IsNullOrEmpty(refreshToken))
-            {
-                return BadRequest("Refresh token not found.");
-            }
-
-            // Извлекаем информацию о пользователе из токена
-            UserModel? userModel = _authService.ExtractClaimsFromRefreshToken(refreshToken);
-
-            if (userModel != null)
-            {
-                // Удаляем сессию пользователя
-                await _authService.DeleteSessionUser(userModel.Uid, userModel.JwtTokens.RefreshTokenJti);
-                // Удаляем куку, устанавливая истекший срок действия
-                Response.Cookies.Append("refreshToken", "", new CookieOptions
-                {
-                    Expires = DateTimeOffset.UtcNow.AddDays(-1),
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.Strict
-                });
-                //TODO после логаута нужно чистить access токен на клиенте
-                return Ok("Logout successful.");
-            }
             return BadRequest();
+
         }
 
-        [HttpPost("login")]
-        [SwaggerOperation(
-            Summary = "Логин пользователя",
-            Description = "Этот метод авторизует пользователя, создаёт ему JWT токены и сессию в БД.")]
-        public async Task<IActionResult> Login([FromBody] UserModel? modelUser)
-        {
-            if (modelUser == null || string.IsNullOrWhiteSpace(modelUser.Login) || string.IsNullOrWhiteSpace(modelUser.Password))
-            {
-                return BadRequest("Invalid login credentials.");
-            }
-            UserModel? user = await _authService.AuthenticationUserAsync(modelUser.Login, modelUser.Password);
-            if (user != null)
-            {
-                SetRefreshTokenCookie(user.JwtTokens);
-                return Ok(new
-                {
-                    AccessToken = user.JwtTokens.AccessToken,
-                });
-            }
+        await _authService.DeleteSessionUser(new DeleteSessionRequest(jwtToken.RefreshTokenJti));
 
+        Response.Cookies.Append("refreshToken", "", new CookieOptions
+        {
+            Expires = DateTimeOffset.UtcNow.AddDays(-1),
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.Strict
+        });
+
+        return Ok("Logout successful.");
+    }
+
+    [HttpPost("login")]
+    [SwaggerOperation(
+        Summary = "Логин пользователя",
+        Description = "Этот метод авторизует пользователя, создаёт ему JWT токены и сессию в БД.")]
+    public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest)
+    {
+        if (loginRequest == null
+            || string.IsNullOrWhiteSpace(loginRequest.Login)
+            || string.IsNullOrWhiteSpace(loginRequest.Password))
+        {
+            return BadRequest("Invalid login credentials.");
+        }
+
+        var jwtToken = await _authService.AuthenticationUserAsync(loginRequest.Login, loginRequest.Password);
+
+        if (jwtToken is null)
+        {
             return Unauthorized();
         }
-        [HttpPost("refreshToken")]
-        [SwaggerOperation(
-            Summary = "Обновление refresh токен",
-            Description = "Этот метод обновляет refresh токен, соверашая проверку по access токену.")]
-        public async Task<IActionResult> Refresh([FromBody] string? refreshToken)
+
+        SetRefreshTokenCookie(jwtToken);
+
+        return Ok(new
         {
-            if (string.IsNullOrWhiteSpace(refreshToken))
-            {
-                return BadRequest("Invalid refresh token.");
-            }
-            var tokenClaims = _authService.ExtractClaimsFromRefreshToken(refreshToken);
-            if (tokenClaims == null)
-            {
-                return Unauthorized();
-            }
-            Guid userUid = tokenClaims.Uid;
-            Guid? jti = tokenClaims.JwtTokens.RefreshTokenJti;
-            if (await _authService.ValidateRefreshToken(userUid, jti))
-            {
-                string? newAccessToken = _authService.GenerateAccessToken(userUid.ToString());
-                var newRefreshToken = _authService.GenerateRefreshToken(userUid.ToString());
-                UserModel? userModel = _authService.ExtractClaimsFromRefreshToken(newRefreshToken.Token);
-                if (!await _authService.UpdateSessionUser(userModel, jti))
-                {
-                    return Unauthorized();
-                }
-                JwtTokenModel jwtTokenModel = new JwtTokenModel
-                {
-                    RefreshToken = newRefreshToken.Token,
-                    RefreshTokenExpiration = newRefreshToken.Expiration
-                };
-                SetRefreshTokenCookie(jwtTokenModel);
-                return Ok(new
-                {
-                    AccessToken = newAccessToken,
-                });
-            }
+            jwtToken.AccessToken,
+        });
+
+
+    }
+
+    [HttpPost("refreshToken")]
+    [SwaggerOperation(
+        Summary = "Обновление refresh токен",
+        Description = "Этот метод обновляет refresh токен, соверашая проверку по access токену.")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest refreshRequest)
+    {
+        if ( refreshRequest is null
+            ||string.IsNullOrWhiteSpace(refreshRequest.RefreshToken))
+        {
+            return BadRequest("Invalid refresh token.");
+        }
+
+        var tokenClaims = _authService.ExtractClaimsFromRefreshToken(refreshRequest.RefreshToken);
+
+        if (tokenClaims == null)
+        {
             return Unauthorized();
         }
-        // TODO Убрать
-        [HttpGet("getRefreshToken")]
-        [SwaggerOperation(
-            Summary = "Получить refresh токен",
-            Description = "Этот метод получает активный refresh токен")]
-        public string GetRefreshToken()
+
+        var jti = tokenClaims.RefreshTokenJti;
+
+        if (!await _authService.ValidateRefreshToken(jti))
         {
-            string value = "test";
-            if (Request.Cookies["refreshToken"] != null)
-            {
-                value = Request.Cookies["refreshToken"];
-            }
-            return value;
+            return Unauthorized();
         }
 
+        string? newAccessToken = _authService.GenerateAccessToken(refreshRequest.RefreshToken.ToString());
+        var newRefreshToken = _authService.GenerateRefreshToken(refreshRequest.RefreshToken.ToString());
 
-        private void SetRefreshTokenCookie(JwtTokenModel token)
+        var jwtToken = _authService.ExtractClaimsFromRefreshToken(newRefreshToken.Token);
+
+        if (!await _authService.UpdateSessionUser(new UpdateSessionRequest(jwtToken.RefreshTokenExpiration,jwtToken.RefreshTokenJti,jti)))
         {
-            try
+            return Unauthorized();
+        }
+        JwtTokenModel jwtTokenModel = new JwtTokenModel
+        {
+            RefreshToken = newRefreshToken.Token,
+            RefreshTokenExpiration = newRefreshToken.Expiration
+        };
+        SetRefreshTokenCookie(jwtTokenModel);
+        return Ok(new
+        {
+            AccessToken = newAccessToken,
+        });
+        
+    }
+
+
+    // TODO Убрать
+    [HttpGet("getRefreshToken")]
+    [SwaggerOperation(
+        Summary = "Получить refresh токен",
+        Description = "Этот метод получает активный refresh токен")]
+    public string GetRefreshToken()
+    {
+        string value = "test";
+        if (Request.Cookies["refreshToken"] != null)
+        {
+            value = Request.Cookies["refreshToken"];
+        }
+        return value;
+    }
+
+
+    private void SetRefreshTokenCookie(JwtTokenModel token)
+    {
+        try
+        {
+            var cookieOptions = new CookieOptions
             {
-                var cookieOptions = new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    Expires = token.RefreshTokenExpiration
-                };
-                if (token.RefreshToken != null)
-                    Response.Cookies.Append("refreshToken", token.RefreshToken, cookieOptions);
-            }
-            catch
-            {
-                Console.WriteLine("Invalid token!");
-            }
+                HttpOnly = true,
+                Secure = true,
+                Expires = token.RefreshTokenExpiration
+            };
+            if (token.RefreshToken != null)
+                Response.Cookies.Append("refreshToken", token.RefreshToken, cookieOptions);
+        }
+        catch
+        {
+            Console.WriteLine("Invalid token!");
         }
     }
 }
