@@ -32,6 +32,26 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
     volumes:
       - dataAccessvolume:/var/lib/dataacess/data
+
+  authservice:
+    container_name: auth_service
+    image: authenticationservice:latest
+    build:
+     context: .
+     dockerfile: AuthenticationService/Dockerfile
+    restart: always
+    depends_on:
+      - dataaccess
+    ports:
+      - 8099:8089
+    networks:
+      - webnet
+    environment:
+      - ASPNETCORE_HTTP_PORTS=8089
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - authservice:/var/lib/authservice/data
+
       
 networks:
   webnet:
@@ -40,5 +60,6 @@ volumes:
   postgres-data:
   dataAccessvolume:
   notesclient:
+  authservice:
 
 
