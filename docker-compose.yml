@@ -52,6 +52,25 @@ services:
     volumes:
       - authservice:/var/lib/authservice/data
 
+  noteservice:
+    container_name: note_service
+    image: noteservice:latest
+    build:
+     context: .
+     dockerfile: NoteService/Dockerfile
+    restart: always
+    depends_on:
+      - dataaccess
+    ports:
+      - 7777:8077
+    networks:
+      - webnet
+    environment:
+      - ASPNETCORE_HTTP_PORTS=8077
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - noteservice:/var/lib/noteservice/data
+
       
 networks:
   webnet:
@@ -61,5 +80,6 @@ volumes:
   dataAccessvolume:
   notesclient:
   authservice:
+  noteservice:
 
 
