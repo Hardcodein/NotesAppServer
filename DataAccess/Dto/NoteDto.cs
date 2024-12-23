@@ -1,3 +1,3 @@
 ﻿namespace DataAccess.Dto;
 
-public record NoteDto(Guid Id,string Title,string Description, DateTime CreatedAt);
+public record NoteDto(Guid Id,Guid UserId,string Title,string Description, DateTime CreatedAt);
