@@ -52,6 +52,7 @@ services:
     volumes:
       - authservice:/var/lib/authservice/data
 
+
   noteservice:
     container_name: note_service
     image: noteservice:latest
@@ -81,5 +82,6 @@ volumes:
   notesclient:
   authservice:
   noteservice:
+
 
 

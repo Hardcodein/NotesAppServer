@@ -1,5 +1,6 @@
 
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 
@@ -10,7 +11,7 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
         {
-            policy.WithOrigins("http://localhost:5173") // Укажите ваш фронтенд-URL
+            policy.WithOrigins("http://localhost:5173") 
                 .AllowAnyHeader()
                 .AllowAnyMethod();
         });
@@ -19,6 +20,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddTransient<INoteByUserRepository, NoteByUserRepository>();
+
 
 var app = builder.Build();
 
@@ -32,7 +34,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
 app.UseCors();
+
 app.MapControllers();
 
 app.Run();

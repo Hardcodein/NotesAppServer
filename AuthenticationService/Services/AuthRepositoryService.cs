@@ -24,7 +24,9 @@ public class AuthRepositoryService
                 return null;
             }
 
+
             var getUserResponse = await _httpClient.GetAsync($"{Links.DataAccessDockerPrivateConnectionUriString}/api/User/GetUser?login={userLogin}");
+
 
             if (!getUserResponse.IsSuccessStatusCode)
             {
@@ -71,7 +73,9 @@ public class AuthRepositoryService
 
     public async Task<bool> AddSessionUser(AddSessionRequest addSessionRequest)
     {
+
         ArgumentNullException.ThrowIfNull(addSessionRequest);
+
 
         var jsonSettings = new JsonSerializerSettings
         {
@@ -88,24 +92,27 @@ public class AuthRepositoryService
     public async Task<bool> UpdateSessionUser(UpdateSessionRequest updateSessionRequest)
     {
         ArgumentNullException.ThrowIfNull(updateSessionRequest);
-
+      
         var jsonSettings = new JsonSerializerSettings
         {
             NullValueHandling = NullValueHandling.Ignore
         };
 
         var jsonContent = new StringContent(JsonConvert.SerializeObject(updateSessionRequest, jsonSettings), Encoding.UTF8, "application/json");
+
         var response = await _httpClient.PutAsync($"{Links.DataAccessDockerPrivateConnectionUriString}/api/User/UpdateSessionUser", jsonContent);
+      
         return response.IsSuccessStatusCode;
     }
 
     public async Task<bool> DeleteSessionUser(DeleteSessionRequest deleteSessionRequest)
     {
         ArgumentNullException.ThrowIfNull(deleteSessionRequest);
-
+      
         var query = $"?RefreshTokenJti={deleteSessionRequest.RefreshTokenJti}";
 
         var response = await _httpClient.DeleteAsync($"{Links.DataAccessDockerPrivateConnectionUriString}/api/User/DeleteSessionUser{query}");
+      
         return response.IsSuccessStatusCode;
     }
 
@@ -137,6 +144,7 @@ public class AuthRepositoryService
         {
             return false;
         }
+
         var GetSessionuri = $"{Links.DataAccessDockerPrivateConnectionUriString}/api/User/GetSessionUser?refreshTokenJti={refreshTokenJti}";
 
         var GetSessionResponse = await _httpClient.GetAsync(GetSessionuri);

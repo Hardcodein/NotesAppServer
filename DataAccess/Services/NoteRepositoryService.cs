@@ -13,6 +13,7 @@ public class NoteRepositoryService
         ArgumentNullException.ThrowIfNull(createNoteRequest);
         try
         {
+
             if (!await _dbContext.Users.AnyAsync(x => x.Id == createNoteRequest.UserId, token))
                 throw new ArgumentException(Constants.NoExistsUserMessage);
 
@@ -38,6 +39,7 @@ public class NoteRepositoryService
     {
         var notesDtos = new List<NoteDto>();
 
+
         ArgumentNullException.ThrowIfNull(getNotesRequest);
 
         try
@@ -58,6 +60,7 @@ public class NoteRepositoryService
                 notesQuery.OrderBy(selectorKey);
 
             notesDtos = await notesQuery.Select(n => new NoteDto(n.Id,n.User_Id!.Value, n.Title!, n.Description!, n.CreatedAt)).ToListAsync(cancellationToken: token);
+
         }
         catch (Exception ex)
         {
