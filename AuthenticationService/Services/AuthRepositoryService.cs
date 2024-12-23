@@ -24,7 +24,7 @@ public class AuthRepositoryService
                 return null;
             }
 
-            var getUserResponse = await _httpClient.GetAsync($"{Links.DbProvider}/api/User/GetUser?login={userLogin}");
+            var getUserResponse = await _httpClient.GetAsync($"{Links.DataAccessDockerPrivateConnectionUriString}/api/User/GetUser?login={userLogin}");
 
             if (!getUserResponse.IsSuccessStatusCode)
             {
@@ -71,8 +71,7 @@ public class AuthRepositoryService
 
     public async Task<bool> AddSessionUser(AddSessionRequest addSessionRequest)
     {
-        if (addSessionRequest is null)
-            throw new ArgumentNullException(nameof(addSessionRequest));
+        ArgumentNullException.ThrowIfNull(addSessionRequest);
 
         var jsonSettings = new JsonSerializerSettings
         {
@@ -81,15 +80,14 @@ public class AuthRepositoryService
 
         var jsonContent = new StringContent(JsonConvert.SerializeObject(addSessionRequest, jsonSettings), Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.PostAsync($"{Links.DbProvider}/api/User/AddSessionUser", jsonContent);
+        var response = await _httpClient.PostAsync($"{Links.DataAccessDockerPrivateConnectionUriString}/api/User/AddSessionUser", jsonContent);
 
         return response.IsSuccessStatusCode;
     } 
 
     public async Task<bool> UpdateSessionUser(UpdateSessionRequest updateSessionRequest)
     {
-        if (updateSessionRequest is null)
-            throw new ArgumentNullException(nameof(updateSessionRequest));
+        ArgumentNullException.ThrowIfNull(updateSessionRequest);
 
         var jsonSettings = new JsonSerializerSettings
         {
@@ -97,18 +95,17 @@ public class AuthRepositoryService
         };
 
         var jsonContent = new StringContent(JsonConvert.SerializeObject(updateSessionRequest, jsonSettings), Encoding.UTF8, "application/json");
-        var response = await _httpClient.PutAsync($"{Links.DbProvider}/api/User/UpdateSessionUser", jsonContent);
+        var response = await _httpClient.PutAsync($"{Links.DataAccessDockerPrivateConnectionUriString}/api/User/UpdateSessionUser", jsonContent);
         return response.IsSuccessStatusCode;
     }
 
     public async Task<bool> DeleteSessionUser(DeleteSessionRequest deleteSessionRequest)
     {
-        if (deleteSessionRequest is null)
-            throw new ArgumentNullException(nameof(deleteSessionRequest));
+        ArgumentNullException.ThrowIfNull(deleteSessionRequest);
 
         var query = $"?RefreshTokenJti={deleteSessionRequest.RefreshTokenJti}";
 
-        var response = await _httpClient.DeleteAsync($"{Links.DbProvider}/api/User/DeleteSessionUser{query}");
+        var response = await _httpClient.DeleteAsync($"{Links.DataAccessDockerPrivateConnectionUriString}/api/User/DeleteSessionUser{query}");
         return response.IsSuccessStatusCode;
     }
 
@@ -140,7 +137,7 @@ public class AuthRepositoryService
         {
             return false;
         }
-        var GetSessionuri = $"{Links.DbProvider}/api/User/GetSessionUser?refreshTokenJti={refreshTokenJti}";
+        var GetSessionuri = $"{Links.DataAccessDockerPrivateConnectionUriString}/api/User/GetSessionUser?refreshTokenJti={refreshTokenJti}";
 
         var GetSessionResponse = await _httpClient.GetAsync(GetSessionuri);
 
