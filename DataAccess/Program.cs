@@ -2,7 +2,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers().AddNewtonsoftJson(options =>
 {
-    options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore; // Игнорируем null-значения
+    options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore; // Г€ГЈГ­Г®Г°ГЁГ°ГіГҐГ¬ null-Г§Г­Г Г·ГҐГ­ГЁГї
 }); 
 
 
@@ -12,16 +12,18 @@ builder.Services.AddTransient<NoteRepositoryService>();
 builder.Services.AddTransient<UserRepositoryService>();
 
 builder.Services.AddCors(options =>
-{
+
+{   
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5173");
+        policy.WithOrigins("http://localhost:8099");
         policy.AllowAnyHeader();
         policy.AllowAnyMethod();
     });
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:8099");
+
+        policy.WithOrigins("http://localhost:7777");
         policy.AllowAnyHeader();
         policy.AllowAnyMethod();
     });

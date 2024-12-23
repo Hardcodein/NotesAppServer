@@ -8,19 +8,23 @@ public class NoteRepositoryService
         _dbContext = dbContext;
     }
 
-    public async Task<bool> CreateNote(CreateNoteRequest request, CancellationToken token)
+    public async Task<bool> CreateNote(CreateNoteRequest createNoteRequest, CancellationToken token)
     {
-        if (request is null)
-        {
-            return false;
-        }
+        ArgumentNullException.ThrowIfNull(createNoteRequest);
         try
         {
+
+            if (!await _dbContext.Users.AnyAsync(x => x.Id == createNoteRequest.UserId, token))
+                throw new ArgumentException(Constants.NoExistsUserMessage);
+
             await _dbContext.AddAsync(new NoteModel()
             {
-               Title = request.Title,
-               Description = request.Description
+               User_Id = createNoteRequest.UserId,
+               Title = createNoteRequest.Title,
+               Description = createNoteRequest.Description,
+               CreatedAt = DateTime.UtcNow,
             }, token);
+
             await _dbContext.SaveChangesAsync(token);
 
         }
@@ -31,12 +35,12 @@ public class NoteRepositoryService
         }
         return true;
     }
-    public async Task<List<NoteDto>> GetNote(GetNotesRequest getNotesRequest, CancellationToken token)
+    public async Task<List<NoteDto>> GetNotes(GetNotesRequest getNotesRequest, CancellationToken token)
     {
         var notesDtos = new List<NoteDto>();
 
-        if (getNotesRequest is null)
-            return new List<NoteDto>();
+
+        ArgumentNullException.ThrowIfNull(getNotesRequest);
 
         try
         {
@@ -55,7 +59,8 @@ public class NoteRepositoryService
                 notesQuery.OrderByDescending(selectorKey) :
                 notesQuery.OrderBy(selectorKey);
 
-            notesDtos = await notesQuery.Select(n => new NoteDto(n.Id, n.Title!, n.Description!, n.CreatedAt)).ToListAsync(cancellationToken: token);
+            notesDtos = await notesQuery.Select(n => new NoteDto(n.Id,n.User_Id!.Value, n.Title!, n.Description!, n.CreatedAt)).ToListAsync(cancellationToken: token);
+
         }
         catch (Exception ex)
         {
@@ -66,23 +71,28 @@ public class NoteRepositoryService
         return notesDtos;
 
     }
-    public async Task<bool> DeleteNotes(Dictionary<Guid, DeleteNoteRequest> deletedNotes,CancellationToken token)
+    public async Task<bool> DeleteNotes(Dictionary<Guid, DeleteNoteRequest> deletedNotes, CancellationToken token)
     {
         if (deletedNotes is null || !deletedNotes.Any())
-            return false;
+            throw new ArgumentNullException(nameof(deletedNotes));
 
         try
         {
 
-            var notesQuery =  await _dbContext.Notes
+            var notesQuery = await _dbContext.Notes
                 .Where(x => deletedNotes.Keys.Contains(x.Id))
-                    .ToListAsync(cancellationToken:token);
+                    .ToListAsync(cancellationToken: token);
 
-            await Task.Run(() => { 
-               _dbContext.Notes.RemoveRange(notesQuery);
+            if (!notesQuery.Any())
+                throw new ArgumentNullException(nameof(notesQuery));
+
+            await Task.Run(() =>
+            {
+                _dbContext.Notes.RemoveRange(notesQuery);
             }, token);
 
             await _dbContext.SaveChangesAsync(token);
+
             return true;
         }
         catch (Exception ex)
@@ -91,6 +101,4 @@ public class NoteRepositoryService
             throw;
         }
     }
-
-
 }

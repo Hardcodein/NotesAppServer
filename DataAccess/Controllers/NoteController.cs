@@ -10,7 +10,6 @@ public class NoteController : ControllerBase
         _noteRepositoryService = noteRepositoryService;
     }
 
-
     [HttpPost("CreateNote")]
     public async Task<IActionResult> CreateNote([FromBody] CreateNoteRequest noteRequest, CancellationToken token)
     {
@@ -25,13 +24,13 @@ public class NoteController : ControllerBase
             BadRequest(Constants.InvalidDataMessageToCreateNote);
     }
 
-    [HttpGet("GetNote")]
+    [HttpGet("GetNotes")]
     public async Task<IActionResult> GetNote([FromQuery] GetNotesRequest noteRequest, CancellationToken token)
     {
         if (noteRequest is null)
             return BadRequest(Constants.NoValidDataMessage);
 
-        var notesFromDatabase = await _noteRepositoryService.GetNote(noteRequest, token);
+        var notesFromDatabase = await _noteRepositoryService.GetNotes(noteRequest, token);
         if (!notesFromDatabase.Any() || notesFromDatabase is null)
             return BadRequest("No items");
 
@@ -44,7 +43,7 @@ public class NoteController : ControllerBase
         if(deleteNoteRequest is null)
             return BadRequest(Constants.NoValidDataMessage);
         
-       var result =  await _noteRepositoryService.DeleteNotes(deleteNoteRequest.ToDictionary(x => x.Id!.Value),token);
+       var result =  await _noteRepositoryService.DeleteNotes(deleteNoteRequest.ToDictionary(x => x.NoteId!.Value),token);
         
         return result ?
             Ok(): 

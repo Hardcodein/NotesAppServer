@@ -1,6 +1,6 @@
-﻿
 
-namespace DataAccess.Controllers;
+﻿namespace DataAccess.Controllers;
+
 
 [ApiController]
 [Route("api/[controller]")]

@@ -1,5 +1,3 @@
-﻿using Microsoft.IdentityModel.JsonWebTokens;
-
 namespace AuthenticationService.Controllers;
 
 [ApiController]
@@ -125,9 +123,7 @@ public class AuthController : ControllerBase
         });
         
     }
-
-
-    // TODO Убрать
+    
     [HttpGet("getRefreshToken")]
     [SwaggerOperation(
         Summary = "Получить refresh токен",
@@ -141,7 +137,6 @@ public class AuthController : ControllerBase
         }
         return value;
     }
-
 
     private void SetRefreshTokenCookie(JwtTokenModel token)
     {
